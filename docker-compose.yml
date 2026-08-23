@@ -1,0 +1,112 @@
+services:
+  caddy:
+    image: caddy:latest
+    container_name: caddy
+    ports:
+      - "80:80"
+      - "443:443"
+      - "8443:8443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - ./data/caddy_data:/data
+      - ./data/caddy_config:/config
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    labels:
+      - "homepage.group=Infrastructure & Network"
+      - "homepage.name=Caddy"
+      - "homepage.icon=caddy.png"
+      - "homepage.description=Reverse Proxy & SSL Router"
+      - "homepage.server=homesrv-docker"
+      - "homepage.container=caddy"
+
+  dashy:
+    image: lissy93/dashy:latest
+    container_name: dashy
+    ports:
+      - "3000:8080"
+    env_file:
+      - ./dashy/dashy.env
+    environment:
+      - NODE_EXTRA_CA_CERTS=/app/user-data/caddy_root.crt
+    volumes:
+      - ./dashy/conf.yml:/app/user-data/conf.yml
+      - ./dashy/dark.css:/app/user-data/dark.css
+      - /home/curso/caddy_root.crt:/app/user-data/caddy_root.crt:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "node", "/app/services/healthcheck.js"]
+      interval: 1m30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  uptime-kuma:
+    image: louislam/uptime-kuma:latest
+    container_name: uptime-kuma
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./data/uptime-kuma:/app/data
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    labels:
+      - "homepage.group=Infrastructure & Network"
+      - "homepage.name=Uptime Kuma"
+      - "homepage.icon=uptime-kuma.png"
+      - "homepage.href=https://status.area52.lan"
+      - "homepage.description=Network Monitor & Alerts"
+      - "homepage.server=homesrv-docker"
+      - "homepage.container=uptime-kuma"
+
+  myspeed:
+    image: germannewsmaker/myspeed:latest
+    container_name: myspeed
+    ports:
+      - "5216:5216"
+    volumes:
+      - ./data/myspeed:/myspeed/data
+    restart: unless-stopped
+    labels:
+      - "homepage.group=Infrastructure & Network"
+      - "homepage.name=MySpeed"
+      - "homepage.icon=myspeed.png"
+      - "homepage.href=https://speed.area52.lan"
+      - "homepage.description=ISP Bandwidth Tracker"
+      - "homepage.widget.type=myspeed"
+      - "homepage.widget.url=http://myspeed:5216"
+
+  glances:
+    image: nicolargo/glances:latest-full
+    container_name: glances
+    pid: host
+    ports:
+      - "61208:61208"
+    environment:
+      - GLANCES_OPT=-w
+      - TZ=America/New_York
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    restart: unless-stopped
+    labels:
+      - "homepage.group=Infrastructure & Network"
+      - "homepage.name=Glances"
+      - "homepage.icon=glances.png"
+      - "homepage.href=http://192.168.2.245:61208"
+      - "homepage.description=System Performance Monitor"
+      - "homepage.server=homesrv-docker"
+      - "homepage.container=glances"
+
+  update-checker:
+    image: nginx:alpine
+    container_name: update-checker
+    volumes:
+      - ./config/homepage/update-status:/usr/share/nginx/html:ro
+    restart: unless-stopped
+    # internal only -- no published port, read by the homepage container
+    # over the compose network as http://update-checker/status.json
+    # (and http://update-checker/factorio/status.json, written by
+    # factorio_status.py into update-status/factorio/)

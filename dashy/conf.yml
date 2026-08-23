@@ -1,0 +1,339 @@
+---
+pageInfo:
+  title: AREA52
+  description: Live Homelab Telemetry
+  navLinks:
+    - title: Pi-hole
+      path: https://dns.area52.lan
+    - title: Panel
+      path: https://panel.area52.lan
+    - title: Status
+      path: https://status.area52.lan
+
+appConfig:
+  theme: area52dark
+  cssThemes: [area52dark]
+  externalStyleSheet: [/dark.css]
+  layout: auto
+  iconSize: large
+  statusCheck: true
+  statusCheckInterval: 30
+  startingView: home
+  defaultOpeningMethod: newtab
+  faviconApi: local
+  disableSmartSort: false
+
+sections:
+  - name: System Vitals
+    icon: mdi-chart-line
+    displayData:
+      rows: 2
+    widgets:
+      - type: customapi
+        label: CPU
+        options:
+          url: http://192.168.2.245:61208/api/4/cpu
+          mappings:
+            - field: total
+              label: CPU
+              format: percent
+            - field: cpucore
+              label: Cores
+              format: number
+      - type: customapi
+        label: Memory
+        options:
+          url: http://192.168.2.245:61208/api/4/mem
+          mappings:
+            - field: percent
+              label: Memory
+              format: percent
+            - field: used
+              label: Used
+              format: bytes
+            - field: total
+              label: Total
+              format: bytes
+      # All 3 entries Glances' fs endpoint returns are the same physical disk
+      # (/dev/sda2), just seen through different container bind-mount paths --
+      # index 0 alone gives the real, single HDD reading.
+      - type: customapi
+        label: Storage
+        options:
+          url: http://192.168.2.245:61208/api/4/fs
+          mappings:
+            - field: 0.used
+              label: "Storage (sda) Used"
+              format: bytes
+            - field: 0.size
+              label: Total
+              format: bytes
+            - field: 0.percent
+              label: Used %
+              format: percent
+      - type: customapi
+        label: Network
+        options:
+          url: http://192.168.2.245:61208/api/4/network
+          mappings:
+            - field: 1.bytes_recv_rate_per_sec
+              label: Download
+              format: bitrate
+              scale: 8
+            - field: 1.bytes_sent_rate_per_sec
+              label: Upload
+              format: bitrate
+              scale: 8
+      - type: customapi
+        label: Uptime
+        options:
+          url: http://192.168.2.245:61208/api/4/uptime
+          mappings:
+            - label: Uptime
+      - type: clock
+        options:
+          timeZone: America/New_York
+          format: en-US-u-hc-h23
+          use12Hour: false
+
+  # Glances already has the Docker socket mounted and exposes live container
+  # stats via its own API -- no separate service needed. This polls that
+  # directly client-side, so new/removed containers just show up on the next
+  # refresh with no config changes.
+  - name: Docker Containers
+    icon: hl-docker
+    displayData:
+      cols: 2
+      rows: 2
+    widgets:
+      - type: embed
+        options:
+          html: |
+            <div id="docker-list-widget">Loading containers&hellip;</div>
+          css: |
+            #docker-list-widget { font-family: var(--font-monospace, monospace); font-size: 0.85rem; max-height: 320px; overflow-y: auto; }
+            .docker-row { display: grid; grid-template-columns: 14px 1.4fr 1.6fr 55px 70px 90px; gap: 8px; align-items: center; padding: 4px 6px; border-bottom: 1px solid var(--background-darker); }
+            .docker-row.docker-header { font-weight: 700; color: var(--primary); border-bottom: 2px solid var(--primary); position: sticky; top: 0; background: var(--item-group-background, var(--background)); }
+            .docker-dot { width: 9px; height: 9px; border-radius: 50%; display: inline-block; box-shadow: 0 0 6px currentColor; }
+            .docker-name, .docker-image, .docker-uptime { color: var(--widget-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .docker-image { opacity: 0.7; font-size: 0.8em; }
+            .docker-cpu, .docker-mem { text-align: right; color: var(--widget-text-color); }
+            .docker-count { margin-top: 6px; opacity: 0.6; font-size: 0.75em; text-align: right; }
+            .docker-error { color: var(--danger); }
+          script: |
+            (function () {
+              const GLANCES_URL = 'http://192.168.2.245:61208/api/4/containers';
+              const el = document.getElementById('docker-list-widget');
+              function statusColor(status) {
+                const s = (status || '').toLowerCase();
+                if (s === 'running' || s === 'healthy') return 'var(--success)';
+                if (s === 'restarting' || s === 'paused' || s === 'starting') return 'var(--warning)';
+                return 'var(--danger)';
+              }
+              function fmtBytes(n) {
+                if (n === null || n === undefined) return '-';
+                const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+                let i = 0;
+                while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
+                return n.toFixed(1) + ' ' + u[i];
+              }
+              async function render() {
+                try {
+                  const res = await fetch(GLANCES_URL);
+                  const data = await res.json();
+                  const rows = data.slice().sort(function (a, b) {
+                    return a.name.localeCompare(b.name);
+                  }).map(function (c) {
+                    const image = (c.image && c.image[0]) || '';
+                    const cpu = (c.cpu_percent || 0).toFixed(1) + '%';
+                    const color = statusColor(c.status);
+                    return '<div class="docker-row">'
+                      + '<span class="docker-dot" style="background:' + color + ';color:' + color + '"></span>'
+                      + '<span class="docker-name" title="' + c.name + '">' + c.name + '</span>'
+                      + '<span class="docker-image" title="' + image + '">' + image + '</span>'
+                      + '<span class="docker-cpu">' + cpu + '</span>'
+                      + '<span class="docker-mem">' + fmtBytes(c.memory_usage) + '</span>'
+                      + '<span class="docker-uptime">' + (c.uptime || '-') + '</span>'
+                      + '</div>';
+                  }).join('');
+                  el.innerHTML =
+                    '<div class="docker-row docker-header"><span></span><span>Name</span><span>Image</span><span>CPU</span><span>Mem</span><span>Uptime</span></div>'
+                    + rows
+                    + '<div class="docker-count">' + data.length + ' containers</div>';
+                } catch (e) {
+                  el.innerHTML = '<div class="docker-error">Unable to reach Glances</div>';
+                }
+              }
+              render();
+              setInterval(render, 10000);
+            })();
+
+  # Static facts (OS/kernel/CPU/packages/shell) are hardcoded below --
+  # Glances only sees ITS OWN container's /etc/os-release, not the real
+  # Ubuntu host, so those fields can't be sourced live without being wrong.
+  # Uptime/memory/disk/container-count are still pulled live from Glances.
+  - name: System Info
+    icon: mdi-console
+    displayData:
+      rows: 2
+    widgets:
+      - type: embed
+        options:
+          html: |
+            <div id="neofetch-widget">Loading&hellip;</div>
+          css: |
+            #neofetch-widget { font-family: var(--font-monospace, monospace); font-size: 0.85rem; }
+            .nf-header { color: var(--primary); font-weight: 700; font-size: 1rem; margin-bottom: 2px; }
+            .nf-rule { border: none; border-top: 1px solid var(--primary); opacity: 0.5; margin: 4px 0 8px; }
+            .nf-row { display: grid; grid-template-columns: 90px 1fr; gap: 8px; padding: 1px 0; }
+            .nf-key { color: var(--primary); font-weight: 700; }
+            .nf-val { color: var(--widget-text-color); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+            .nf-swatches { display: flex; gap: 4px; margin-top: 10px; }
+            .nf-swatch { width: 16px; height: 16px; border-radius: 2px; }
+          script: |
+            (function () {
+              const GLANCES = 'http://192.168.2.245:61208/api/4';
+              const el = document.getElementById('neofetch-widget');
+
+              const STATIC = {
+                header: 'curso@homesrv',
+                os: 'Ubuntu 24.04.4 LTS',
+                kernel: '7.0.0-29-generic',
+                packages: '2134 (apt)',
+                shell: 'bash',
+                cpu: 'Intel Core i7-6850K (12) @ 3.60GHz',
+                ip: '192.168.2.245',
+              };
+
+              function fmtGiB(bytes) {
+                if (bytes === null || bytes === undefined) return '-';
+                return (bytes / 1073741824).toFixed(1) + 'GiB';
+              }
+
+              function row(key, val) {
+                return '<div class="nf-row"><span class="nf-key">' + key + '</span><span class="nf-val">' + val + '</span></div>';
+              }
+
+              async function render() {
+                try {
+                  const [uptime, mem, fs, containers] = await Promise.all([
+                    fetch(GLANCES + '/uptime').then(function (r) { return r.json(); }),
+                    fetch(GLANCES + '/mem').then(function (r) { return r.json(); }),
+                    fetch(GLANCES + '/fs').then(function (r) { return r.json(); }),
+                    fetch(GLANCES + '/containers').then(function (r) { return r.json(); }),
+                  ]);
+                  const disk = fs[0] || {};
+                  const running = containers.filter(function (c) {
+                    const s = (c.status || '').toLowerCase();
+                    return s === 'running' || s === 'healthy';
+                  }).length;
+
+                  el.innerHTML =
+                    '<div class="nf-header">' + STATIC.header + '</div>'
+                    + '<hr class="nf-rule">'
+                    + row('OS', STATIC.os)
+                    + row('Kernel', STATIC.kernel)
+                    + row('Uptime', uptime)
+                    + row('Packages', STATIC.packages)
+                    + row('Shell', STATIC.shell)
+                    + row('CPU', STATIC.cpu)
+                    + row('Memory', fmtGiB(mem.used) + ' / ' + fmtGiB(mem.total))
+                    + row('Disk (sda)', fmtGiB(disk.used) + ' / ' + fmtGiB(disk.size))
+                    + row('IP', STATIC.ip)
+                    + row('Containers', running + '/' + containers.length + ' running')
+                    + '<div class="nf-swatches">'
+                    + ['--primary', '--info', '--success', '--warning', '--danger', '--neutral'].map(function (v) {
+                      return '<span class="nf-swatch" style="background:var(' + v + ')"></span>';
+                    }).join('')
+                    + '</div>';
+                } catch (e) {
+                  el.innerHTML = '<div style="color:var(--danger)">Unable to reach Glances</div>';
+                }
+              }
+              render();
+              setInterval(render, 15000);
+            })();
+
+  - name: Network & DNS
+    icon: hl-pi-hole
+    widgets:
+      - type: customapi
+        useProxy: true
+        options:
+          url: http://myspeed:5216/api/speedtests?limit=1
+          display: list
+          mappings:
+            - field: 0.download
+              label: Download
+              format: number
+              suffix: " Mbps"
+            - field: 0.upload
+              label: Upload
+              format: number
+              suffix: " Mbps"
+            - field: 0.ping
+              label: Ping
+              format: number
+              suffix: " ms"
+
+  - name: Network Services
+    icon: mdi-router-network
+    items:
+      - title: Pi-hole
+        description: DNS sinkhole & ad blocking
+        icon: hl-pi-hole
+        url: https://dns.area52.lan
+        statusCheck: true
+      - title: MySpeed
+        description: ISP bandwidth history
+        icon: hl-myspeed
+        url: https://speed.area52.lan
+        statusCheck: true
+      - title: Uptime Kuma
+        description: Service status & alerts
+        icon: hl-uptime-kuma
+        url: https://status.area52.lan
+        statusCheck: true
+      - title: Glances
+        description: Live system resource monitor
+        icon: hl-glances
+        url: http://192.168.2.245:61208
+        statusCheck: true
+        statusCheckUrl: http://glances:61208
+
+  - name: Media
+    icon: mdi-play-network
+    items:
+      - title: Jellyfin
+        description: Movies & TV streaming
+        icon: hl-jellyfin
+        url: https://media.area52.lan
+        statusCheck: true
+      - title: Calibre-Web
+        description: Ebook library
+        icon: hl-calibre-web
+        url: https://books.area52.lan
+        statusCheck: true
+
+  - name: Game Servers
+    icon: mdi-controller-classic
+    items:
+      - title: Pterodactyl
+        description: Game server control panel
+        icon: hl-pterodactyl
+        url: https://panel.area52.lan
+        statusCheck: true
+
+  - name: Infrastructure
+    icon: mdi-server
+    items:
+      - title: Caddy
+        description: Reverse proxy & SSL router
+        icon: hl-caddy
+        statusCheck: false
+      - title: iVentoy
+        description: PXE network boot menu
+        icon: mdi-server-network
+        url: https://pxe.area52.lan
+        statusCheck: true
+        statusCheckUrl: http://host.docker.internal:26000

@@ -1,0 +1,108 @@
+/* AREA52 dark-neon theme -- near-black throughout, single cyan accent.
+   Variables per docs/theming.md; flourishes scoped to body/pseudo-elements
+   only so they don't depend on Dashy's internal component class names. */
+
+html[data-theme='area52dark'] {
+  --primary: #00e5ff;
+  --background: #0a0a0d;
+  --background-darker: #050506;
+  --curve-factor: 2px;
+  --curve-factor-navbar: 2px;
+
+  --heading-text-color: #00e5ff;
+  --nav-link-text-color: #8a8a95;
+  --nav-link-background-color: transparent;
+  --nav-link-text-color-hover: #00e5ff;
+  --nav-link-background-color-hover: #10151a;
+  --nav-link-border-color: transparent;
+  --nav-link-border-color-hover: #00e5ff;
+
+  --search-container-background: #050506;
+  --search-field-background: #101014;
+
+  --settings-background: #101014;
+  --settings-text-color: #00e5ff;
+
+  --footer-text-color: #3a3a42;
+  --footer-text-color-link: #00e5ff;
+
+  --item-text-color: #c4c4cc;
+  --item-group-outer-background: #101014;
+  --item-group-background: #0d0d10;
+  --item-group-heading-text-color: #00e5ff;
+  --item-group-heading-text-color-hover: #0a0a0d;
+
+  --scroll-bar-color: #00e5ff;
+  --scroll-bar-background: #050506;
+
+  --highlight-background: #00e5ff;
+  --highlight-color: #0a0a0d;
+
+  --toast-background: #101014;
+  --toast-color: #00e5ff;
+
+  --welcome-popup-background: #101014;
+  --welcome-popup-text-color: #00e5ff;
+
+  --side-bar-background: #050506;
+  --side-bar-color: #00e5ff;
+
+  --status-check-tooltip-background: #101014;
+  --status-check-tooltip-color: #00e5ff;
+
+  --context-menu-color: #00e5ff;
+  --context-menu-background: #101014;
+  --context-menu-secondary-color: #3a3a42;
+
+  --outline-color: #00e5ff;
+  --scroll-bar-width: 8px;
+  --item-group-padding: 6px;
+  --item-shadow: 0 0 0 1px #1a1a20, inset 0 0 12px #00e5ff11;
+  --item-hover-shadow: 0 0 14px #00e5ff88, 0 0 1px #00e5ff;
+  --item-icon-transform: drop-shadow(0 0 1px #00e5ff55) saturate(0.9) brightness(0.95);
+  --item-icon-transform-hover: drop-shadow(0 0 6px #00e5ff) saturate(1.3) brightness(1.1);
+  --item-group-shadow: 0 0 0 1px #1a1a2080;
+
+  --info: #00e5ff;
+  --success: #2bca6a;
+  --warning: #d9a441;
+  --danger: #ff3b3b;
+  --neutral: #1a1a20;
+}
+
+@import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Rajdhani:wght@500;600;700&display=swap');
+
+body {
+  font-family: 'Rajdhani', 'Share Tech Mono', monospace, sans-serif !important;
+  background-color: var(--background);
+  position: relative;
+}
+
+/* subtle CRT scanline texture, fixed overlay so it never blocks clicks */
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 9999;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(255, 255, 255, 0.015) 0px,
+    rgba(255, 255, 255, 0.015) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: overlay;
+}
+
+::selection {
+  background: var(--highlight-background);
+  color: var(--highlight-color);
+}
+
+::-webkit-scrollbar { width: var(--scroll-bar-width); }
+::-webkit-scrollbar-track { background: var(--scroll-bar-background); }
+::-webkit-scrollbar-thumb {
+  background: var(--scroll-bar-color);
+  box-shadow: 0 0 6px var(--scroll-bar-color);
+}

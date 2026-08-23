@@ -1,0 +1,88 @@
+# Global Settings
+{
+	# Suppress public ACME cert attempts for local TLDs
+	local_certs
+}
+
+# Reusable snippet for internal TLS
+(local_tls) {
+	tls internal
+}
+
+# ------------------------------------------------------------------------------
+# Dashy Dashboard
+# ------------------------------------------------------------------------------
+dash.area52.lan {
+	import local_tls
+	reverse_proxy dashy:8080
+}
+
+# ------------------------------------------------------------------------------
+# Pi-hole Web Interface
+# ------------------------------------------------------------------------------
+dns.area52.lan {
+    import local_tls
+    
+    # Automatically append /admin if hitting the bare domain
+    redir / /admin/ 308
+    
+    reverse_proxy host.docker.internal:8080
+}
+
+# ------------------------------------------------------------------------------
+# Media Services (Jellyfin / Calibre-Web)
+# ------------------------------------------------------------------------------
+media.area52.lan {
+	import local_tls
+	reverse_proxy host.docker.internal:8096
+}
+
+books.area52.lan {
+	import local_tls
+	reverse_proxy host.docker.internal:8083
+}
+
+# ------------------------------------------------------------------------------
+# Monitoring & Utilities
+# ------------------------------------------------------------------------------
+status.area52.lan {
+	import local_tls
+	reverse_proxy uptime-kuma:3001
+}
+
+speed.area52.lan {
+	import local_tls
+	reverse_proxy myspeed:5216
+}
+
+# ------------------------------------------------------------------------------
+# Game Server Management (Pterodactyl)
+# ------------------------------------------------------------------------------
+panel.area52.lan {
+	import local_tls
+	reverse_proxy host.docker.internal:8081
+}
+
+# Wings daemon API/websocket (Panel <-> Node). Caddy terminates TLS here so both
+# the panel backend and the browser (server console/stats) trust the same
+# locally-issued cert instead of Wings' own unmanaged self-signed one.
+panel.area52.lan:8443 {
+	import local_tls
+	reverse_proxy host.docker.internal:8091
+}
+
+# ------------------------------------------------------------------------------
+# iVentoy (PXE network boot menu)
+# ------------------------------------------------------------------------------
+pxe.area52.lan {
+	import local_tls
+	reverse_proxy host.docker.internal:26000
+}
+
+# ------------------------------------------------------------------------------
+# Base Domain Redirect
+# ------------------------------------------------------------------------------
+area52.lan {
+	import local_tls
+	redir https://dash.area52.lan{uri}
+}

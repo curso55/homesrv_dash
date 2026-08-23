@@ -1,0 +1,11 @@
+# Runtime app data / TLS certs / databases -- not config, not secrets-safe
+data/
+config/
+
+# Widget/service secrets -- see dashy/README.md for the required keys
+dashy/dashy.env
+
+# Local cron job logs
+scripts/*.log
+
+.DS_Store

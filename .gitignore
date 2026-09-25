@@ -2,10 +2,43 @@
 data/
 config/
 
-# Widget/service secrets -- see dashy/README.md for the required keys
-dashy/dashy.env
+# Pi-hole app password used by homelab_backup.sh's Teleporter export
+pihole_backup.env
+
+# qBittorrent WebUI credentials used by stalled_download_reaper.sh
+qbittorrent.env
+
+# Vaultwarden secrets and runtime vault data (encrypted, but still not repo material)
+vaultwarden/vaultwarden.env
+vaultwarden/data/
+
+# Cloudflare tunnel connector token
+cloudflared/cloudflared.env
+
+# Local backup archives
+backups/
+
+# Generated stats file for the Storage Overview / backups widgets
+backup_stats/stats.json
+
+# Homarr's own database + redis persistence -- runtime state/secrets, not config
+homarr/appdata/
+
+# newsdesk runtime data, env secrets, and Ollama model blobs -- sources.yaml
+# itself stays committed (config-as-code, not a secret)
+newsdesk/appdata/
+newsdesk/newsdesk.env
+newsdesk/ollama/appdata/
 
 # Local cron job logs
 scripts/*.log
 
 .DS_Store
+.devswarm-temp/
+
+# Python bytecode (scripts/udm_triage.py is imported)
+__pycache__/
+
+# Secrets (UniFi login, Discord webhook) and runtime logs/IDS archive -- this repo is PUBLIC
+*.env
+logs/
